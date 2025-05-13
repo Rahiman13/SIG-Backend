@@ -34,12 +34,16 @@ exports.getTickets = async (req, res) => {
 
 // Update ticket status
 exports.updateTicketStatus = async (req, res) => {
-  const { status } = req.body;
+  const { status, title, description } = req.body;
+
   const ticket = await Ticket.findById(req.params.id).populate('raisedBy');
 
   if (!ticket) return res.status(404).json({ message: 'Ticket not found' });
 
   ticket.status = status;
+  ticket.title = title;
+  ticket.description = description;
+
   if (status === 'Resolved') ticket.resolvedAt = new Date();
   await ticket.save();
 
@@ -60,4 +64,80 @@ exports.deleteTicket = async (req, res) => {
   const ticket = await Ticket.findByIdAndDelete(req.params.id);
   if (!ticket) return res.status(404).json({ message: 'Ticket not found' });
   res.json({ message: 'Ticket deleted' });
+};
+
+
+
+exports.getYearlyTicketStats = async (req, res) => {
+  try {
+    const stats = await Ticket.aggregate([
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      }
+    ]);
+
+    // Optional: format response into a cleaner structure
+    const formattedStats = stats.map(item => ({
+      year: item._id.year,
+      month: item._id.month,
+      count: item.count
+    }));
+
+    res.json({ success: true, data: formattedStats });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch ticket stats',
+      error: error.message
+    });
+  }
+};
+
+
+exports.getTicketStatusCounts = async (req, res) => {
+  try {
+    const statusCounts = await Ticket.aggregate([
+      {
+        $match: {
+          status: { $in: ['Open', 'Resolved', 'Breached'] } // Filter out null or invalid
+        }
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const formattedCounts = {
+      Open: 0,
+      Resolved: 0,
+      Breached: 0,
+    };
+
+    statusCounts.forEach(item => {
+      formattedCounts[item._id] = item.count;
+    });
+
+    res.json({
+      success: true,
+      data: formattedCounts,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch ticket status counts',
+      error: error.message,
+    });
+  }
 };

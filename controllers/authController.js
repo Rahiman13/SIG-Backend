@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const Employee = require('../models/Employee');
 const transporter = require('../config/nodemailer');
 const generateOTP = require('../utils/generateOTP');
+const bcrypt = require('bcrypt');
 
 const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
@@ -53,8 +54,6 @@ exports.sendOTP = async (req, res) => {
 };
 
 exports.resetPassword = async (req, res) => {
-  console.log("Received body:", req.body); // Debug line
-
   const { email, otp, newPassword } = req.body;
 
   try {
@@ -65,7 +64,7 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
 
-    employee.password = await bcrypt.hash(newPassword, 10);
+    employee.password = newPassword; // Let the model hash it
     employee.otp = undefined;
     employee.otpExpiry = undefined;
     await employee.save();

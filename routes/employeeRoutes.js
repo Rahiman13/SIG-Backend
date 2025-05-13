@@ -7,6 +7,7 @@ const {
   getProfile,
   updateProfile,
   getAllEmployees,    // Done
+  getEmployeeById,
   deleteEmployee,    // Done
   forgotPassword,
   resetPassword,
@@ -33,6 +34,7 @@ router.put('/profile/:id', protect, updateProfile);
 
 // Admin: Manage all employees
 router.get('/', protect, adminOnly, getAllEmployees);
+router.get('/:id', protect, adminOnly, getEmployeeById);
 router.delete('/:id', protect, adminOnly, deleteEmployee);
 
 module.exports = router;

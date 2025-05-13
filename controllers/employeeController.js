@@ -155,6 +155,22 @@ const updateProfile = async (req, res) => {
   }
 };
 
+
+// @desc    Get employee by ID
+// @route   GET /api/employees/:id
+const getEmployeeById = async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id);
+    if (!employee) {
+      return res.status(404).json({ message: 'Employee not found' });
+    }
+    res.json(employee);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
 // @desc    Get all employees (admin only)
 // @route   GET /api/employees/
 const getAllEmployees = async (req, res) => {
@@ -233,6 +249,7 @@ module.exports = {
   updateProfile,
   getProfile,
   getAllEmployees,
+  getEmployeeById,
   deleteEmployee,
   forgotPassword,
   resetPassword

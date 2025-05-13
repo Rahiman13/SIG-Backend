@@ -5,12 +5,16 @@ const {
   createTicket,
   getTickets,
   updateTicketStatus,
-  deleteTicket
+  deleteTicket,
+  getYearlyTicketStats,
+  getTicketStatusCounts
 } = require('../controllers/ticketController');
 
 router.post('/', protect, createTicket);
 router.get('/', protect, getTickets);
 router.put('/:id', protect, updateTicketStatus);
 router.delete('/:id', protect, deleteTicket);
+router.get('/ticket-stats/yearly', getYearlyTicketStats);
+router.get('/ticket-stats/by-status', getTicketStatusCounts);
 
 module.exports = router;

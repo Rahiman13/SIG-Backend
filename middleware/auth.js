@@ -1,21 +1,64 @@
 const jwt = require('jsonwebtoken');
 const Employee = require('../models/Employee');
 
-exports.protect = async (req, res, next) => {
-  const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+// exports.protect = async (req, res, next) => {
+//   let token;
 
-  if (!token) return res.status(401).json({ message: 'Not authorized' });
+//   // Check if token exists in headers
+//   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+//     try {
+//       // Get token from header
+//       token = req.headers.authorization.split(' ')[1];
+
+//       // Verify the token
+//       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+//       // Get user from the token (assumed user id is decoded)
+//       req.employee = await Employee.findById(decoded.id).select('-password'); // Avoid returning the password
+
+//       next();
+//     } catch (error) {
+//       res.status(401).json({ message: 'Not authorized, token failed' });
+//     }
+//   }
+
+//   if (!token) {
+//     res.status(401).json({ message: 'Not authorized, no token' });
+//   }
+// };
+
+// middleware/adminMiddleware.js
+
+exports.protect = async (req, res, next) => {
+  let token;
+
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  if (!token) {
+    return res.status(401).json({ message: 'Not authorized, token missing' });
+  }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await Employee.findById(decoded.id).select('-password');
+    const employee = await Employee.findById(decoded.id).select('-password');
+
+    if (!employee) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    req.user = employee; // ✅ this is what your controller expects
+
     next();
   } catch (err) {
-    return res.status(401).json({ message: 'Token failed' });
+    res.status(401).json({ message: 'Token verification failed' });
   }
 };
 
-// middleware/adminMiddleware.js
 exports.adminOnly = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 

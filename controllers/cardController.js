@@ -36,24 +36,57 @@ const upload = multer({
 }).single('image');  // The name attribute for the file input in your form is 'image'
 
 // Card creation logic with image upload to Cloudinary
+// exports.createCard = (req, res) => {
+//   upload(req, res, (err) => {
+//     if (err) {
+//       return res.status(400).json({ message: err.message });
+//     }
+    
+//     // Upload the image to Cloudinary
+//     cloudinary.uploader.upload(req.file.path, { folder: 'cards' }, (err, result) => {
+//       if (err) {
+//         return res.status(500).json({ message: 'Error uploading image to Cloudinary' });
+//       }
+
+//       // Create new card with Cloudinary URL
+//       const newCard = new Card({
+//         title: req.body.title,
+//         description: req.body.description,
+//         imageUrl: result.secure_url,  // Save the Cloudinary image URL
+//         imagePublicId: result.public_id,  // Save Cloudinary public ID for future reference (e.g., delete)
+//         type: req.body.type,
+//       });
+
+//       newCard.save()
+//         .then((card) => {
+//           res.status(201).json({ message: 'Card created successfully', card });
+//         })
+//         .catch((error) => {
+//           res.status(500).json({ message: 'Error saving card to database', error });
+//         });
+//     });
+//   });
+// };
 exports.createCard = (req, res) => {
   upload(req, res, (err) => {
     if (err) {
       return res.status(400).json({ message: err.message });
     }
-    
-    // Upload the image to Cloudinary
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'No image file provided' });
+    }
+
     cloudinary.uploader.upload(req.file.path, { folder: 'cards' }, (err, result) => {
       if (err) {
-        return res.status(500).json({ message: 'Error uploading image to Cloudinary' });
+        return res.status(500).json({ message: 'Error uploading image to Cloudinary', error: err });
       }
 
-      // Create new card with Cloudinary URL
       const newCard = new Card({
         title: req.body.title,
-        description: req.body.description,
-        imageUrl: result.secure_url,  // Save the Cloudinary image URL
-        imagePublicId: result.public_id,  // Save Cloudinary public ID for future reference (e.g., delete)
+        description: JSON.parse(req.body.description),
+        imageUrl: result.secure_url,
+        imagePublicId: result.public_id,
         type: req.body.type,
       });
 
@@ -67,6 +100,7 @@ exports.createCard = (req, res) => {
     });
   });
 };
+
 
 // Get all cards
 exports.getCards = (req, res) => {

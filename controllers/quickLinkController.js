@@ -16,7 +16,7 @@ exports.createQuickLink = async (req, res) => {
       content,
       link,
       image: imageUrl,
-      createdBy: req.user._id,
+      createdBy: req.employee._id,
     });
 
     res.status(201).json(quickLink);
