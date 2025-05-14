@@ -1,21 +1,13 @@
 const QuickLink = require('../models/QuickLink');
-const cloudinary = require('../config/cloudinary');
 
 exports.createQuickLink = async (req, res) => {
   try {
     const { title, content, link } = req.body;
-    let imageUrl = null;
-
-    if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path);
-      imageUrl = result.secure_url;
-    }
 
     const quickLink = await QuickLink.create({
       title,
       content,
       link,
-      image: imageUrl,
       createdBy: req.employee._id,
     });
 
@@ -26,36 +18,35 @@ exports.createQuickLink = async (req, res) => {
 };
 
 exports.getAllQuickLinks = async (req, res) => {
-  const links = await QuickLink.find().populate('createdBy', 'name email');
-  res.json(links);
+  try {
+    const links = await QuickLink.find().populate('createdBy', 'name email');
+    res.json(links);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };
 
 exports.getQuickLinkById = async (req, res) => {
-  const link = await QuickLink.findById(req.params.id).populate('createdBy', 'name email');
-  if (!link) return res.status(404).json({ message: 'Quick Link not found' });
-  res.json(link);
+  try {
+    const link = await QuickLink.findById(req.params.id).populate('createdBy', 'name email');
+    if (!link) return res.status(404).json({ message: 'Quick Link not found' });
+    res.json(link);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };
 
 exports.updateQuickLink = async (req, res) => {
   try {
     const { title, content, link } = req.body;
-    let imageUrl = null;
-
-    if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path);
-      imageUrl = result.secure_url;
-    }
 
     const updated = await QuickLink.findByIdAndUpdate(
       req.params.id,
-      {
-        title,
-        content,
-        link,
-        ...(imageUrl && { image: imageUrl }),
-      },
+      { title, content, link },
       { new: true }
     );
+
+    if (!updated) return res.status(404).json({ message: 'Quick Link not found' });
 
     res.json(updated);
   } catch (err) {
@@ -64,7 +55,21 @@ exports.updateQuickLink = async (req, res) => {
 };
 
 exports.deleteQuickLink = async (req, res) => {
-  const link = await QuickLink.findByIdAndDelete(req.params.id);
-  if (!link) return res.status(404).json({ message: 'Quick Link not found' });
-  res.json({ message: 'Quick Link deleted' });
+  try {
+    const link = await QuickLink.findByIdAndDelete(req.params.id);
+    if (!link) return res.status(404).json({ message: 'Quick Link not found' });
+    res.json({ message: 'Quick Link deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get total count of QuickLinks
+exports.getQuickLinkCount = async (req, res) => {
+  try {
+    const count = await QuickLink.countDocuments();
+    res.json({ totalQuickLinks: count });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };

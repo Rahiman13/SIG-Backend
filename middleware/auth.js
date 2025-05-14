@@ -29,6 +29,40 @@ const Employee = require('../models/Employee');
 
 // middleware/adminMiddleware.js
 
+// Middleware to protect routes
+// exports.protect = async (req, res, next) => {
+//   let token;
+
+//   // Extract token from header
+//   if (
+//     req.headers.authorization &&
+//     req.headers.authorization.startsWith('Bearer')
+//   ) {
+//     token = req.headers.authorization.split(' ')[1];
+//   }
+
+//   if (!token) {
+//     return res.status(401).json({ message: 'Not authorized, token missing' });
+//   }
+
+//   try {
+//     // Verify token and get employee
+//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+//     const employee = await Employee.findById(decoded.id).select('-password');
+
+//     if (!employee) {
+//       return res.status(401).json({ message: 'User not found' });
+//     }
+
+//     // Attach employee to request as `req.employee` (✅ fix)
+//     req.employee = employee;
+//     next();
+//   } catch (err) {
+//     console.error('Token error:', err.message);
+//     res.status(401).json({ message: 'Token verification failed' });
+//   }
+// };
+
 exports.protect = async (req, res, next) => {
   let token;
 
@@ -51,13 +85,14 @@ exports.protect = async (req, res, next) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    req.user = employee; // ✅ this is what your controller expects
-
+    req.employee = employee;
     next();
   } catch (err) {
+    console.error('Token error:', err.message);
     res.status(401).json({ message: 'Token verification failed' });
   }
 };
+
 
 exports.adminOnly = async (req, res, next) => {
   const authHeader = req.headers.authorization;

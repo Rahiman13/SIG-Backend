@@ -1,7 +1,7 @@
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
 const path = require('path');
-const Card = require('../models/Card');  // Assuming you have a Card model
+const Card = require('../models/Card');
 
 // Cloudinary config
 cloudinary.config({
@@ -10,20 +10,19 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer storage configuration
+// Multer storage config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, './uploads');  // Store file temporarily in local 'uploads' folder
+    cb(null, './uploads');
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));  // Append timestamp to filename
+    cb(null, Date.now() + path.extname(file.originalname));
   },
 });
 
-// Multer upload configuration
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 },  // Max file size 5MB
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const filetypes = /jpeg|jpg|png|gif/;
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
@@ -31,42 +30,11 @@ const upload = multer({
     if (mimetype && extname) {
       return cb(null, true);
     }
-    cb(new Error('Only images are allowed'));
+    cb(new Error('Only image files are allowed'));
   },
-}).single('image');  // The name attribute for the file input in your form is 'image'
+}).single('image');
 
-// Card creation logic with image upload to Cloudinary
-// exports.createCard = (req, res) => {
-//   upload(req, res, (err) => {
-//     if (err) {
-//       return res.status(400).json({ message: err.message });
-//     }
-    
-//     // Upload the image to Cloudinary
-//     cloudinary.uploader.upload(req.file.path, { folder: 'cards' }, (err, result) => {
-//       if (err) {
-//         return res.status(500).json({ message: 'Error uploading image to Cloudinary' });
-//       }
-
-//       // Create new card with Cloudinary URL
-//       const newCard = new Card({
-//         title: req.body.title,
-//         description: req.body.description,
-//         imageUrl: result.secure_url,  // Save the Cloudinary image URL
-//         imagePublicId: result.public_id,  // Save Cloudinary public ID for future reference (e.g., delete)
-//         type: req.body.type,
-//       });
-
-//       newCard.save()
-//         .then((card) => {
-//           res.status(201).json({ message: 'Card created successfully', card });
-//         })
-//         .catch((error) => {
-//           res.status(500).json({ message: 'Error saving card to database', error });
-//         });
-//     });
-//   });
-// };
+// Create Card
 exports.createCard = (req, res) => {
   upload(req, res, (err) => {
     if (err) {
@@ -82,100 +50,80 @@ exports.createCard = (req, res) => {
         return res.status(500).json({ message: 'Error uploading image to Cloudinary', error: err });
       }
 
+      // Parse and filter description (remove image type)
+      let filteredDescription = [];
+      try {
+        const parsed = JSON.parse(req.body.description);
+        filteredDescription = parsed.filter((block) =>
+          ['heading', 'paragraph', 'list', 'quote'].includes(block.type)
+        );
+      } catch (parseErr) {
+        return res.status(400).json({ message: 'Invalid description format', error: parseErr });
+      }
+
       const newCard = new Card({
         title: req.body.title,
-        description: JSON.parse(req.body.description),
-        imageUrl: result.secure_url,
+        description: filteredDescription,
+        image: result.secure_url,
         imagePublicId: result.public_id,
         type: req.body.type,
+        createdBy: req.user?.id, // Optional: add user from auth middleware
       });
 
       newCard.save()
-        .then((card) => {
-          res.status(201).json({ message: 'Card created successfully', card });
-        })
-        .catch((error) => {
-          res.status(500).json({ message: 'Error saving card to database', error });
-        });
+        .then((card) => res.status(201).json({ message: 'Card created successfully', card }))
+        .catch((error) => res.status(500).json({ message: 'Error saving card to database', error }));
     });
   });
 };
 
-
-// Get all cards
+// Get All Cards
 exports.getCards = (req, res) => {
   Card.find()
-    .then((cards) => {
-      res.status(200).json(cards);
-    })
-    .catch((error) => {
-      res.status(500).json({ message: 'Error fetching cards', error });
-    });
+    .then((cards) => res.status(200).json(cards))
+    .catch((error) => res.status(500).json({ message: 'Error fetching cards', error }));
 };
 
-// Get a specific card by ID
+// Get Card by ID
 exports.getCardById = (req, res) => {
-  const cardId = req.params.id;
-  Card.findById(cardId)
+  Card.findById(req.params.id)
     .then((card) => {
-      if (!card) {
-        return res.status(404).json({ message: 'Card not found' });
-      }
+      if (!card) return res.status(404).json({ message: 'Card not found' });
       res.status(200).json(card);
     })
-    .catch((error) => {
-      res.status(500).json({ message: 'Error fetching card details', error });
-    });
+    .catch((error) => res.status(500).json({ message: 'Error fetching card', error }));
 };
 
-// Update card by ID
+// Update Card
 exports.updateCard = (req, res) => {
-  const cardId = req.params.id;
-  Card.findByIdAndUpdate(cardId, req.body, { new: true })
+  Card.findByIdAndUpdate(req.params.id, req.body, { new: true })
     .then((card) => {
-      if (!card) {
-        return res.status(404).json({ message: 'Card not found' });
-      }
+      if (!card) return res.status(404).json({ message: 'Card not found' });
       res.status(200).json({ message: 'Card updated successfully', card });
     })
-    .catch((error) => {
-      res.status(500).json({ message: 'Error updating card', error });
-    });
+    .catch((error) => res.status(500).json({ message: 'Error updating card', error }));
 };
 
-// Delete card by ID
+// Delete Card
 exports.deleteCard = (req, res) => {
-  const cardId = req.params.id;
-  Card.findByIdAndDelete(cardId)
+  Card.findByIdAndDelete(req.params.id)
     .then((card) => {
-      if (!card) {
-        return res.status(404).json({ message: 'Card not found' });
-      }
+      if (!card) return res.status(404).json({ message: 'Card not found' });
 
-      // Delete image from Cloudinary if card has an image
       if (card.imagePublicId) {
-        cloudinary.uploader.destroy(card.imagePublicId, (err, result) => {
-          if (err) {
-            return res.status(500).json({ message: 'Error deleting image from Cloudinary', error: err });
-          }
+        cloudinary.uploader.destroy(card.imagePublicId, (err) => {
+          if (err) return res.status(500).json({ message: 'Error deleting image from Cloudinary', error: err });
         });
       }
 
       res.status(200).json({ message: 'Card deleted successfully' });
     })
-    .catch((error) => {
-      res.status(500).json({ message: 'Error deleting card', error });
-    });
+    .catch((error) => res.status(500).json({ message: 'Error deleting card', error }));
 };
 
-// Get count of cards by category
+// Count Cards by Category
 exports.getCardCountByCategory = (req, res) => {
-  const { category } = req.params;
-  Card.countDocuments({ type: category })
-    .then((count) => {
-      res.status(200).json({ category, count });
-    })
-    .catch((error) => {
-      res.status(500).json({ message: 'Error counting cards by category', error });
-    });
+  Card.countDocuments({ type: req.params.category })
+    .then((count) => res.status(200).json({ category: req.params.category, count }))
+    .catch((error) => res.status(500).json({ message: 'Error counting cards by category', error }));
 };

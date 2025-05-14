@@ -23,6 +23,8 @@ const generateToken = (res, userId) => {
   });
 };
 
+
+
 // @desc    Register new employee (admin only)
 // @route   POST /api/employees/register
 // const registerEmployee = async (req, res) => {
@@ -242,6 +244,37 @@ const resetPassword = async (req, res) => {
   }
 };
 
+
+// @desc    Get total and role-wise employee count
+// @route   GET /api/employees/count
+const getEmployeeCounts = async (req, res) => {
+  try {
+    const total = await Employee.countDocuments();
+
+    const roleCounts = await Employee.aggregate([
+      {
+        $group: {
+          _id: '$role',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const roleCountMap = {};
+    roleCounts.forEach((rc) => {
+      roleCountMap[rc._id] = rc.count;
+    });
+
+    res.json({
+      total,
+      roleWise: roleCountMap,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
 module.exports = {
   // registerEmployee,
   // loginEmployee,
@@ -252,5 +285,6 @@ module.exports = {
   getEmployeeById,
   deleteEmployee,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  getEmployeeCounts
 };

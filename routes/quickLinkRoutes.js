@@ -1,19 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const upload = require('../middleware/upload');
+
 const {
   createQuickLink,
   getAllQuickLinks,
   getQuickLinkById,
   updateQuickLink,
-  deleteQuickLink
+  deleteQuickLink,
+  getQuickLinkCount
 } = require('../controllers/quickLinkController');
 
-router.post('/', protect, upload.single('image'), createQuickLink);
+// Routes
+router.post('/', protect, createQuickLink);
 router.get('/', protect, getAllQuickLinks);
+router.get('/count', protect, getQuickLinkCount); // 🔹 New route for count
 router.get('/:id', protect, getQuickLinkById);
-router.put('/:id', protect, upload.single('image'), updateQuickLink);
+router.put('/:id', protect, updateQuickLink);
 router.delete('/:id', protect, deleteQuickLink);
 
 module.exports = router;

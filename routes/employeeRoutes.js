@@ -11,6 +11,7 @@ const {
   deleteEmployee,    // Done
   forgotPassword,
   resetPassword,
+  getEmployeeCounts
 } = require('../controllers/employeeController');
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -30,6 +31,7 @@ router.post('/reset-password', resetPassword);
 
 // Employee profile
 router.get('/profile', protect, authMiddleware, getProfile);
+router.get('/count', protect, authMiddleware, getEmployeeCounts);
 router.put('/profile/:id', protect, updateProfile);
 
 // Admin: Manage all employees
