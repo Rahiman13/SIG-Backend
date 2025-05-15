@@ -11,9 +11,12 @@ const {
   deleteEmployee,    // Done
   forgotPassword,
   resetPassword,
-  getEmployeeCounts
+  getEmployeeCounts,
+  updateProfileImage
 } = require('../controllers/employeeController');
 const authMiddleware = require('../middleware/authMiddleware');
+const upload = require('../middleware/upload'); // adjust the path if needed
+
 
 
 const { protect, adminOnly } = require('../middleware/auth');
@@ -30,9 +33,10 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
 // Employee profile
-router.get('/profile', protect, authMiddleware, getProfile);
+router.get('/profile', protect, getProfile);
 router.get('/count', protect, authMiddleware, getEmployeeCounts);
 router.put('/profile/:id', protect, updateProfile);
+router.put('/profile-image', upload.single('image'), updateProfileImage);
 
 // Admin: Manage all employees
 router.get('/', protect, adminOnly, getAllEmployees);

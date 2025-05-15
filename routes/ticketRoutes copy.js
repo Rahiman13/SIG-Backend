@@ -8,21 +8,15 @@ const {
   deleteTicket,
   getYearlyTicketStats,
   getTicketStatusCounts,
-  getTicketById,
-  reassignTicket 
+  getTicketById
 } = require('../controllers/ticketController');
-const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
 
-router.post('/', upload.single('image'), createTicket);
+router.post('/', protect, createTicket);
 router.get('/', protect, getTickets);
 router.get('/:id', protect, getTicketById);
 router.put('/:id', protect, updateTicketStatus);
 router.delete('/:id', protect, deleteTicket);
 router.get('/ticket-stats/yearly', getYearlyTicketStats);
 router.get('/ticket-stats/by-status', getTicketStatusCounts);
-
-// Only CEO or HR can reassign tickets
-router.put('/tickets/:id/reassign', protect, reassignTicket);
 
 module.exports = router;

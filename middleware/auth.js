@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const asyncHandler = require('express-async-handler');
+
 const Employee = require('../models/Employee');
 
 // exports.protect = async (req, res, next) => {
@@ -92,6 +94,37 @@ exports.protect = async (req, res, next) => {
     res.status(401).json({ message: 'Token verification failed' });
   }
 };
+
+// profile Image ke vaste change karam
+// exports.protect = asyncHandler(async (req, res, next) => {
+//   let token;
+
+//   // Check if token is sent in headers
+//   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+//     try {
+//       token = req.headers.authorization.split(' ')[1];
+
+//       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+//       req.user = await Employee.findById(decoded.id).select('-password');
+
+//       if (!req.user) {
+//         res.status(401);
+//         throw new Error('Not authorized, user not found');
+//       }
+
+//       next();
+//     } catch (error) {
+//       res.status(401);
+//       throw new Error('Not authorized, token failed');
+//     }
+//   }
+
+//   if (!token) {
+//     res.status(401);
+//     throw new Error('Not authorized, no token');
+//   }
+// });
 
 
 exports.adminOnly = async (req, res, next) => {

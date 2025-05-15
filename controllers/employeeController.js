@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sendMail = require('../utils/sendMail');
 
+const asyncHandler = require('express-async-handler');
+
 // OTP store (in-memory, for production use Redis or DB)
 let otpStore = {};
 
@@ -140,9 +142,15 @@ const logoutEmployee = (req, res) => {
 
 // @desc    Get logged-in employee profile
 // @route   GET /api/employees/profile
-const getProfile = async (req, res) => {
-  res.json(req.user);
-};
+// const getProfile = async (req, res) => {
+//   res.json(req.user);
+// };
+
+const getProfile = asyncHandler(async (req, res) => {
+  const employee = req.employee;
+  res.status(200).json(employee);
+});
+
 
 // @desc    Update logged-in employee profile
 // @route   PUT /api/employees/profile
@@ -275,6 +283,38 @@ const getEmployeeCounts = async (req, res) => {
 };
 
 
+// @desc    Update employee profile image (with Multer + Cloudinary)
+// @route   PUT /api/employees/profile-image
+const updateProfileImage = asyncHandler(async (req, res) => {
+  const { _id } = req.body;
+  const file = req.file;
+
+  if (!file) {
+    return res.status(400).json({ message: 'No image file uploaded' });
+  }
+
+  const employee = await Employee.findById(_id);
+  if (!employee) {
+    return res.status(404).json({ message: 'Employee not found' });
+  }
+
+  // Upload to Cloudinary
+  const cloudinary = require('../utils/cloudinary'); // adjust if your path is different
+  const result = await cloudinary.uploader.upload(file.path, {
+    folder: 'signavox/employees', // optional folder in Cloudinary
+    resource_type: 'image',
+  });
+
+  // Update profileImage field
+  employee.profileImage = result.secure_url;
+  await employee.save();
+
+  res.status(200).json({ message: 'Profile image updated successfully', profileImage: result.secure_url });
+});
+
+
+
+
 module.exports = {
   // registerEmployee,
   // loginEmployee,
@@ -286,5 +326,6 @@ module.exports = {
   deleteEmployee,
   forgotPassword,
   resetPassword,
-  getEmployeeCounts
+  getEmployeeCounts,
+  updateProfileImage
 };

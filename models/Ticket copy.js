@@ -3,8 +3,6 @@ const mongoose = require('mongoose');
 const ticketSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
-  ticketNo: { type: String, required: true, unique: true },
-  image: { type: String }, // URL from Cloudinary
   status: {
     type: String,
     enum: ['Open', 'Resolved', 'Breached'],
@@ -16,12 +14,8 @@ const ticketSchema = new mongoose.Schema({
     required: true,
   },
   assignedTo: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Employee',
-  },
-  handledBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Employee',
+    type: String, // Email or HR ID; for now use default HR email
+    default: 'signavoxtechnologies@gmail.com',
   },
   createdAt: { type: Date, default: Date.now },
   resolvedAt: Date,

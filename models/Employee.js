@@ -7,7 +7,7 @@ const employeeSchema = new mongoose.Schema({
   password: { type: String, required: true },
   employeeId: { type: String, required: true, unique: true },
   role: { type: String, enum: ['CEO', 'HR', 'Manager', 'Developer', 'DevOps', 'BDE', 'Other'], default: 'Other' },
-  team: { type: String, enum: ['Operations', 'Technical', 'Finance', 'Marketing', 'Other'], default: 'Other' },
+  team: { type: String, enum: ['Operations', 'Technical', 'Finance', 'Marketing', 'Support', 'Other' ], default: 'Other' },
   bloodGroup: String,
   profileImage: String,
   status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },

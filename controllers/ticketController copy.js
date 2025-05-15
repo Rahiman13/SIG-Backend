@@ -1,62 +1,22 @@
 const Ticket = require('../models/Ticket');
-const Employee = require('../models/Employee');
-const cloudinary = require('../utils/cloudinary');
-const generateTicketNumber = require('../utils/generateTicketNumber');
 const sendMail = require('../utils/sendMail');
 
-let lastAssignedIndex = -1; // Track last assigned support member
-
 // Create Ticket
-// exports.createTicket = async (req, res) => {
-//   try {
-//     const { title, description } = req.body;
-
-//     const ticket = await Ticket.create({
-//       title,
-//       description,
-//       raisedBy: req.employee._id,
-//     });
-
-//     // Send mail to HR
-//     await sendMail({
-//       to: 'signavoxtechnologies@gmail.com',
-//       subject: `New Ticket Raised: ${title}`,
-//       text: `A new ticket has been raised by ${req.employee.name} (${req.employee.email}):\n\n${description}`,
-//     });
-
-//     res.status(201).json(ticket);
-//   } catch (err) {
-//     res.status(400).json({ message: err.message });
-//   }
-// };
 exports.createTicket = async (req, res) => {
   try {
     const { title, description } = req.body;
 
-    const supportMembers = await Employee.find({ role: 'Support' });
-    if (supportMembers.length === 0)
-      return res.status(400).json({ message: 'No support members available' });
-
-    // Round-robin assignment
-    lastAssignedIndex = (lastAssignedIndex + 1) % supportMembers.length;
-    const assignedMember = supportMembers[lastAssignedIndex];
-
-    let imageUrl = null;
-    if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: 'tickets',
-      });
-      imageUrl = result.secure_url;
-    }
-
     const ticket = await Ticket.create({
       title,
       description,
-      ticketNo: generateTicketNumber(),
       raisedBy: req.employee._id,
-      assignedTo: assignedMember._id,
-      handledBy: assignedMember._id,
-      image: imageUrl,
+    });
+
+    // Send mail to HR
+    await sendMail({
+      to: 'signavoxtechnologies@gmail.com',
+      subject: `New Ticket Raised: ${title}`,
+      text: `A new ticket has been raised by ${req.employee.name} (${req.employee.email}):\n\n${description}`,
     });
 
     res.status(201).json(ticket);
@@ -64,28 +24,6 @@ exports.createTicket = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
-
-//reassign ticket for admin only
-exports.reassignTicket = async (req, res) => {
-  try {
-    const { newSupportId } = req.body;
-    const ticket = await Ticket.findById(req.params.id);
-    const supportMember = await Employee.findById(newSupportId);
-
-    if (!ticket || !supportMember || supportMember.role !== 'Support') {
-      return res.status(400).json({ message: 'Invalid ticket or support member' });
-    }
-
-    ticket.assignedTo = supportMember._id;
-    ticket.handledBy = supportMember._id;
-    await ticket.save();
-
-    res.json({ message: 'Ticket reassigned', ticket });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
 
 // Get all tickets (admin) or self tickets
 exports.getTickets = async (req, res) => {
