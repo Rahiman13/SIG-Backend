@@ -26,11 +26,11 @@ const { protect, adminOnly } = require('../middleware/auth');
 
 // // Login and logout
 // router.post('/login', loginEmployee);
-router.post('/logout', logoutEmployee);
+// router.post('/logout', logoutEmployee);
 
 // Forgot/reset password with OTP
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+// router.post('/forgot-password', forgotPassword);
+// router.post('/reset-password', resetPassword);
 
 // Employee profile
 router.get('/profile', protect, getProfile);

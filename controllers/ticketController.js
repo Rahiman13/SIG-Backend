@@ -1,229 +1,213 @@
-const Ticket = require('../models/Ticket');
-const Employee = require('../models/Employee');
-const cloudinary = require('../utils/cloudinary');
-const generateTicketNumber = require('../utils/generateTicketNumber');
-const sendMail = require('../utils/sendMail');
+const Ticket = require("../models/Ticket");
+const User = require("../models/Employee");
+const asyncHandler = require("express-async-handler");
+const { sendMail } = require("../utils/sendMail");
+const path = require("path");
+const fs = require("fs");
 
-let lastAssignedIndex = -1; // Track last assigned support member
+// Utility: Check if a date is a working day (Mon–Fri)
+const isWorkingDay = (date) => {
+  const day = date.getDay();
+  return day >= 1 && day <= 5;
+};
+
+// Utility: Get next working day
+const getNextWorkingDay = (date) => {
+  const result = new Date(date);
+  while (!isWorkingDay(result)) {
+    result.setDate(result.getDate() + 1);
+  }
+  return result;
+};
+
+// Utility: Get working hours between two dates
+const getWorkingHoursBetween = (start, end) => {
+  let hours = 0;
+  const current = new Date(start);
+  while (current < end) {
+    if (isWorkingDay(current)) {
+      hours++;
+    }
+    current.setHours(current.getHours() + 1);
+  }
+  return hours;
+};
+
+const now = new Date(); // <== This was missing
+
+
+// Format date as DDMMYYYY
+const day = String(now.getDate()).padStart(2, '0');
+const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+const year = now.getFullYear();
+const formattedDate = `${day}${month}${year}`;
 
 // Create Ticket
-// exports.createTicket = async (req, res) => {
-//   try {
-//     const { title, description } = req.body;
+const createTicket = asyncHandler(async (req, res) => {
+  const { title, description, createdBy } = req.body;
+  const image = req.file ? req.file.filename : null;
 
-//     const ticket = await Ticket.create({
-//       title,
-//       description,
-//       raisedBy: req.employee._id,
-//     });
+  const employee = await User.findById(createdBy);
+  if (!employee) throw new Error("Employee not found");
 
-//     // Send mail to HR
-//     await sendMail({
-//       to: 'signavoxtechnologies@gmail.com',
-//       subject: `New Ticket Raised: ${title}`,
-//       text: `A new ticket has been raised by ${req.employee.name} (${req.employee.email}):\n\n${description}`,
-//     });
+  const ticketCount = await Ticket.countDocuments();
+  // const ticketNumber = `IE${Date.now()}${ticketCount + 1}`;
+  // console.log(Date.now())
+  const ticketNumber = `IE${formattedDate}${ticketCount + 1}`;
 
-//     res.status(201).json(ticket);
-//   } catch (err) {
-//     res.status(400).json({ message: err.message });
-//   }
-// };
-exports.createTicket = async (req, res) => {
-  try {
-    const { title, description } = req.body;
+  const assignedSupport = await assignSupportEmployee();
+  if (!assignedSupport) throw new Error("No support member available");
 
-    const supportMembers = await Employee.find({ role: 'Support' });
-    if (supportMembers.length === 0)
-      return res.status(400).json({ message: 'No support members available' });
+  const ticket = await Ticket.create({
+    title,
+    description,
+    createdBy,
+    assignedTo: assignedSupport._id,
+    ticketNumber,
+    image,
+    status: "Open",
+    createdAt: new Date(),
+  });
 
-    // Round-robin assignment
-    lastAssignedIndex = (lastAssignedIndex + 1) % supportMembers.length;
-    const assignedMember = supportMembers[lastAssignedIndex];
+  res.status(201).json(ticket);
+});
 
-    let imageUrl = null;
-    if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: 'tickets',
-      });
-      imageUrl = result.secure_url;
-    }
+// Assign support employee round-robin
+let lastAssignedIndex = 0;
+const assignSupportEmployee = async () => {
+  // Case-insensitive match to avoid casing issues in the DB
+  const supportTeam = await User.find({ role: /Support/i, status: "Active" });
 
-    const ticket = await Ticket.create({
-      title,
-      description,
-      ticketNo: generateTicketNumber(),
-      raisedBy: req.employee._id,
-      assignedTo: assignedMember._id,
-      handledBy: assignedMember._id,
-      image: imageUrl,
-    });
+  console.log("Available Support Members:", supportTeam.map(u => u.name)); // Debug log
 
-    res.status(201).json(ticket);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
+  if (!supportTeam.length) return null;
+
+  const assigned = supportTeam[lastAssignedIndex % supportTeam.length];
+  lastAssignedIndex++;
+  return assigned;
 };
 
-//reassign ticket for admin only
-exports.reassignTicket = async (req, res) => {
-  try {
-    const { newSupportId } = req.body;
-    const ticket = await Ticket.findById(req.params.id);
-    const supportMember = await Employee.findById(newSupportId);
-
-    if (!ticket || !supportMember || supportMember.role !== 'Support') {
-      return res.status(400).json({ message: 'Invalid ticket or support member' });
-    }
-
-    ticket.assignedTo = supportMember._id;
-    ticket.handledBy = supportMember._id;
-    await ticket.save();
-
-    res.json({ message: 'Ticket reassigned', ticket });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-
-// Get all tickets (admin) or self tickets
-exports.getTickets = async (req, res) => {
-  const query = req.employee.role === 'CEO' || req.employee.role === 'HR'
-    ? {}
-    : { raisedBy: req.employee._id };
-
-  const tickets = await Ticket.find(query).populate('raisedBy', 'name email');
+// Get All Tickets
+const getAllTickets = asyncHandler(async (req, res) => {
+  const tickets = await Ticket.find().populate("createdBy assignedTo handledBy forwardedFrom forwardedTo");
   res.json(tickets);
-};
+});
 
-// Update ticket status
-exports.updateTicketStatus = async (req, res) => {
-  const { status, title, description } = req.body;
+// Get Ticket by ID
+const getTicketById = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findById(req.params.id).populate("createdBy assignedTo handledBy forwardedFrom forwardedTo");
+  if (!ticket) {
+    res.status(404);
+    throw new Error("Ticket not found");
+  }
+  res.json(ticket);
+});
 
-  const ticket = await Ticket.findById(req.params.id).populate('raisedBy');
+// Update Ticket
+const updateTicket = asyncHandler(async (req, res) => {
+  const { title, description, status } = req.body;
+  const ticket = await Ticket.findById(req.params.id);
+  if (!ticket) {
+    res.status(404);
+    throw new Error("Ticket not found");
+  }
 
-  if (!ticket) return res.status(404).json({ message: 'Ticket not found' });
+  ticket.title = title || ticket.title;
+  ticket.description = description || ticket.description;
+  if (status) ticket.status = status;
 
-  ticket.status = status;
-  ticket.title = title;
-  ticket.description = description;
+  if (req.file) {
+    const image = req.file.filename;
+    ticket.image = image;
+  }
 
-  if (status === 'Resolved') ticket.resolvedAt = new Date();
+  await ticket.save();
+  res.json(ticket);
+});
+
+// Delete Ticket
+const deleteTicket = asyncHandler(async (req, res) => {
+  const ticket = await Ticket.findById(req.params.id);
+  if (!ticket) {
+    res.status(404);
+    throw new Error("Ticket not found");
+  }
+
+  // Delete associated image if it exists
+  if (ticket.image) {
+    const imagePath = path.join(__dirname, `../uploads/${ticket.image}`);
+    if (fs.existsSync(imagePath)) {
+      fs.unlinkSync(imagePath);
+    }
+  }
+
+  await Ticket.findByIdAndDelete(req.params.id);
+
+  res.json({ message: "Ticket deleted" });
+});
+
+
+// Forward Ticket
+const forwardTicket = asyncHandler(async (req, res) => {
+  const { forwardedTo } = req.body;
+  const ticket = await Ticket.findById(req.params.id);
+  if (!ticket) throw new Error("Ticket not found");
+
+  const targetUser = await User.findById(forwardedTo);
+  if (!targetUser || !/support/i.test(targetUser.role)) throw new Error("Invalid forwarding target");
+
+  ticket.forwardedFrom = ticket.assignedTo;
+  ticket.forwardedTo = forwardedTo;
+  ticket.assignedTo = forwardedTo;
   await ticket.save();
 
-  // Notify employee if resolved
-  if (status === 'Resolved') {
-    await sendMail({
-      to: ticket.raisedBy.email,
-      subject: `Ticket Resolved: ${ticket.title}`,
-      text: `Hi ${ticket.raisedBy.name},\n\nYour ticket "${ticket.title}" has been resolved.`,
-    });
-  }
+  res.json({ message: "Ticket forwarded successfully", ticket });
+});
 
-  res.json(ticket);
-};
+// Ticket Stats
+const getTicketStats = asyncHandler(async (req, res) => {
+  const total = await Ticket.countDocuments();
+  const open = await Ticket.countDocuments({ status: "Open" });
+  const resolved = await Ticket.countDocuments({ status: "Resolved" });
+  const breached = await Ticket.countDocuments({ status: "Breached" });
 
-// Delete ticket
-exports.deleteTicket = async (req, res) => {
-  const ticket = await Ticket.findByIdAndDelete(req.params.id);
-  if (!ticket) return res.status(404).json({ message: 'Ticket not found' });
-  res.json({ message: 'Ticket deleted' });
-};
+  res.json({ total, open, resolved, breached });
+});
 
-// Get ticket creation stats per month/year
-exports.getYearlyTicketStats = async (req, res) => {
-  try {
-    const stats = await Ticket.aggregate([
-      {
-        $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
-          },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
-    ]);
+// Breach Check Job (run every hour with cron)
+const checkBreachedTickets = asyncHandler(async (req, res) => {
+  const tickets = await Ticket.find({ status: "Open" });
+  const breachedTickets = [];
 
-    const formattedStats = stats.map(item => ({
-      year: item._id.year,
-      month: item._id.month,
-      count: item.count
-    }));
+  for (let ticket of tickets) {
+    const workingHours = getWorkingHoursBetween(ticket.createdAt, new Date());
+    if (workingHours >= 24) {
+      ticket.status = "Breached";
+      await ticket.save();
 
-    res.json({ success: true, data: formattedStats });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch ticket stats',
-      error: error.message
-    });
-  }
-};
+      const creator = await User.findById(ticket.createdBy);
+      const admin = await User.findOne({ role: "CEO" }); // or use multiple admins
 
-// Get ticket status counts
-exports.getTicketStatusCounts = async (req, res) => {
-  try {
-    const statusCounts = await Ticket.aggregate([
-      {
-        $match: {
-          status: { $in: ['Open', 'Resolved', 'Breached'] }
-        }
-      },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
+      const subject = `🚨 Ticket ${ticket.ticketNumber} Breached`;
+      const message = `The ticket titled "${ticket.title}" has breached the 24-hour SLA. Please take immediate action.`;
 
-    const formattedCounts = {
-      Open: 0,
-      Resolved: 0,
-      Breached: 0,
-    };
+      await sendMail(creator.email, subject, message);
+      if (admin) await sendMail(admin.email, subject, message);
 
-    statusCounts.forEach(item => {
-      formattedCounts[item._id] = item.count;
-    });
-
-    res.json({
-      success: true,
-      data: formattedCounts,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch ticket status counts',
-      error: error.message,
-    });
-  }
-};
-
-
-
-// Get a single ticket by ID
-exports.getTicketById = async (req, res) => {
-  try {
-    const ticket = await Ticket.findById(req.params.id).populate('raisedBy', 'name email');
-
-    if (!ticket) {
-      return res.status(404).json({ message: 'Ticket not found' });
+      breachedTickets.push(ticket.ticketNumber);
     }
-
-    // Allow access only to the creator or admins (CEO/HR)
-    if (
-      ticket.raisedBy._id.toString() !== req.employee._id.toString() &&
-      !['CEO', 'HR'].includes(req.employee.role)
-    ) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    res.json(ticket);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching ticket', error: error.message });
   }
+
+  res.json({ breached: breachedTickets });
+});
+
+module.exports = {
+  createTicket,
+  getAllTickets,
+  getTicketById,
+  updateTicket,
+  deleteTicket,
+  forwardTicket,
+  getTicketStats,
+  checkBreachedTickets,
 };

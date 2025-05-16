@@ -3,18 +3,7 @@ const mongoose = require('mongoose');
 const ticketSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
-  ticketNo: { type: String, required: true, unique: true },
-  image: { type: String }, // URL from Cloudinary
-  status: {
-    type: String,
-    enum: ['Open', 'Resolved', 'Breached'],
-    default: 'Open',
-  },
-  raisedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Employee',
-    required: true,
-  },
+  ticketNumber: { type: String, unique: true },
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee',
@@ -22,6 +11,27 @@ const ticketSchema = new mongoose.Schema({
   handledBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee',
+  },
+  image: String,
+  forwardedFrom: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee',
+  },
+  countForwardedFrom: { type: Number, default: 0 },
+  forwardedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee',
+  },
+  countForwardedTo: { type: Number, default: 0 },
+  status: {
+    type: String,
+    enum: ['Open', 'Resolved', 'Breached'],
+    default: 'Open',
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee',
+    required: true,
   },
   createdAt: { type: Date, default: Date.now },
   resolvedAt: Date,

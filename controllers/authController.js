@@ -6,9 +6,16 @@ const bcrypt = require('bcrypt');
 
 const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
+const isValidSignavoxEmail = (email) => email.endsWith("@signavoxtechnologies.com");
+
+
 exports.registerEmployee = async (req, res) => {
   try {
     const { name, email, password, employeeId, role, team, bloodGroup, profileImage } = req.body;
+
+    if (!isValidSignavoxEmail(email)) {
+      return res.status(400).json({ message: "Only @signavoxtechnologies.com emails are allowed" });
+    }
 
     const isAdmin = ['CEO', 'HR'].includes(role);
     const employee = await Employee.create({ name, email, password, employeeId, role, team, bloodGroup, profileImage, isAdmin });

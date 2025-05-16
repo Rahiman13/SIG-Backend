@@ -1,28 +1,42 @@
-const express = require('express');
+// routes/ticketRoutes.js
+const express = require("express");
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const upload = require("../middleware/upload")
 const {
   createTicket,
-  getTickets,
-  updateTicketStatus,
-  deleteTicket,
-  getYearlyTicketStats,
-  getTicketStatusCounts,
+  getAllTickets,
   getTicketById,
-  reassignTicket 
-} = require('../controllers/ticketController');
-const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
+  updateTicket,
+  deleteTicket,
+  forwardTicket,
+  getTicketStats,
+  checkBreachedTickets,
+} = require("../controllers/ticketController");
 
-router.post('/', upload.single('image'), createTicket);
-router.get('/', protect, getTickets);
-router.get('/:id', protect, getTicketById);
-router.put('/:id', protect, updateTicketStatus);
-router.delete('/:id', protect, deleteTicket);
-router.get('/ticket-stats/yearly', getYearlyTicketStats);
-router.get('/ticket-stats/by-status', getTicketStatusCounts);
 
-// Only CEO or HR can reassign tickets
-router.put('/tickets/:id/reassign', protect, reassignTicket);
+// Get ticket statistics
+router.get("/stats", getTicketStats);
+
+// Create Ticket with image upload
+router.post("/", upload.single("image"), createTicket);
+
+// Get all tickets
+router.get("/", getAllTickets);
+
+// Get ticket by ID
+router.get("/:id", getTicketById);
+
+// Update ticket by ID (optional image upload)
+router.put("/:id", upload.single("image"), updateTicket);
+
+// Delete ticket by ID
+router.delete("/:id", deleteTicket);
+
+// Forward ticket by ID
+router.post("/forward/:id", forwardTicket);
+
+
+// Check breached tickets (could be a cron job endpoint or protected route)
+router.get("/check-breached", checkBreachedTickets);
 
 module.exports = router;
