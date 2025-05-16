@@ -33,6 +33,7 @@ const { protect, adminOnly } = require('../middleware/auth');
 // router.post('/forgot-password', forgotPassword);
 // router.post('/reset-password', resetPassword);
 
+router.get('/support',  getSupportEmployees);
 // Employee profile
 router.get('/profile', protect, getProfile);
 router.get('/count', protect, authMiddleware, getEmployeeCounts);
@@ -41,7 +42,6 @@ router.put('/profile-image', upload.single('image'), updateProfileImage);
 
 // Admin: Manage all employees
 // router.get('/support', protect, adminOnly, getSupportEmployees);
-router.get('/support', protect, adminOnly, getSupportEmployees);
 router.get('/', protect, adminOnly, getAllEmployees);
 router.get('/:id', protect, adminOnly, getEmployeeById);
 router.delete('/:id', protect, adminOnly, deleteEmployee);
