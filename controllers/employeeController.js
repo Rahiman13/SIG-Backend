@@ -124,6 +124,18 @@ const updateProfileImage = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Profile image updated successfully', profileImage: result.secure_url });
 });
 
+// @desc    Get all employees with 'Support' role
+// @route   GET /api/employees/support
+const getSupportEmployees = asyncHandler(async (req, res) => {
+  try {
+    const supportEmployees = await Employee.find({ role: 'Support' });
+    res.status(200).json(supportEmployees);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
 module.exports = {
   updateProfile,
   getProfile,
@@ -131,5 +143,6 @@ module.exports = {
   getEmployeeById,
   deleteEmployee,
   getEmployeeCounts,
-  updateProfileImage
+  updateProfileImage,
+  getSupportEmployees
 };

@@ -12,7 +12,8 @@ const {
   forgotPassword,
   resetPassword,
   getEmployeeCounts,
-  updateProfileImage
+  updateProfileImage,
+  getSupportEmployees
 } = require('../controllers/employeeController');
 const authMiddleware = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload'); // adjust the path if needed
@@ -42,5 +43,6 @@ router.put('/profile-image', upload.single('image'), updateProfileImage);
 router.get('/', protect, adminOnly, getAllEmployees);
 router.get('/:id', protect, adminOnly, getEmployeeById);
 router.delete('/:id', protect, adminOnly, deleteEmployee);
+router.get('/support', protect, adminOnly, getSupportEmployees);
 
 module.exports = router;
