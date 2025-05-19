@@ -72,6 +72,42 @@ const formattedDate = `${day}${month}${year}`;
 //   res.status(201).json(ticket);
 // });
 // Create Ticket
+// const createTicket = asyncHandler(async (req, res) => {
+//   const { title, description, createdBy } = req.body;
+//   const image = req.file ? req.file.filename : null;
+
+//   const employee = await User.findById(createdBy);
+//   if (!employee) throw new Error("Employee not found");
+
+//   const todayStart = new Date();
+//   todayStart.setHours(0, 0, 0, 0);
+
+//   const todayEnd = new Date();
+//   todayEnd.setHours(23, 59, 59, 999);
+
+//   const todayTicketCount = await Ticket.countDocuments({
+//     createdAt: { $gte: todayStart, $lte: todayEnd }
+//   });
+
+//   const ticketNumber = `IE${formattedDate}${todayTicketCount + 1}`;
+
+//   const assignedSupport = await assignSupportEmployee();
+//   if (!assignedSupport) throw new Error("No support member available");
+
+//   const ticket = await Ticket.create({
+//     title,
+//     description,
+//     createdBy,
+//     assignedTo: assignedSupport._id,
+//     ticketNumber,
+//     image,
+//     status: "Open",
+//     createdAt: new Date(),
+//   });
+
+//   res.status(201).json(ticket);
+// });
+
 const createTicket = asyncHandler(async (req, res) => {
   const { title, description, createdBy } = req.body;
   const image = req.file ? req.file.filename : null;
@@ -79,17 +115,19 @@ const createTicket = asyncHandler(async (req, res) => {
   const employee = await User.findById(createdBy);
   if (!employee) throw new Error("Employee not found");
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  // Format date as DDMMYYYY
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  const formattedDate = `${day}${month}${year}`;
 
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
+  // Find existing ticket numbers that start with today's prefix
+  const ticketPrefix = `IE${formattedDate}`;
+  const todayTickets = await Ticket.find({ ticketNumber: { $regex: `^${ticketPrefix}` } });
 
-  const todayTicketCount = await Ticket.countDocuments({
-    createdAt: { $gte: todayStart, $lte: todayEnd }
-  });
-
-  const ticketNumber = `IE${formattedDate}${todayTicketCount + 1}`;
+  const todayCount = todayTickets.length + 1;
+  const ticketNumber = `${ticketPrefix}${todayCount}`;
 
   const assignedSupport = await assignSupportEmployee();
   if (!assignedSupport) throw new Error("No support member available");
