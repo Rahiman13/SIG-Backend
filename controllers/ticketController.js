@@ -115,19 +115,37 @@ const createTicket = asyncHandler(async (req, res) => {
   const employee = await User.findById(createdBy);
   if (!employee) throw new Error("Employee not found");
 
-  // Format date as DDMMYYYY
-  const now = new Date();
-  const day = String(now.getDate()).padStart(2, '0');
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const year = now.getFullYear();
-  const formattedDate = `${day}${month}${year}`;
+  // Ticket prefix
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
 
-  // Find existing ticket numbers that start with today's prefix
-  const ticketPrefix = `IE${formattedDate}`;
-  const todayTickets = await Ticket.find({ ticketNumber: { $regex: `^${ticketPrefix}` } });
+  const todayTicketCount = await Ticket.countDocuments({
+    createdAt: { $gte: todayStart, $lte: todayEnd }
+  });
 
-  const todayCount = todayTickets.length + 1;
-  const ticketNumber = `${ticketPrefix}${todayCount}`;
+  const randomString = () => {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let result = "";
+    for (let i = 0; i < 2; i++) {
+      result += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    return result;
+  };
+
+  let ticketNumber;
+  let exists = true;
+  let attempts = 0;
+
+  while (exists && attempts < 5) {
+    ticketNumber = `IE${formattedDate}${randomString()}${todayTicketCount + 1}`;
+    const existingTicket = await Ticket.findOne({ ticketNumber });
+    if (!existingTicket) exists = false;
+    attempts++;
+  }
+
+  if (exists) throw new Error("Failed to generate unique ticket number");
 
   const assignedSupport = await assignSupportEmployee();
   if (!assignedSupport) throw new Error("No support member available");
@@ -145,6 +163,7 @@ const createTicket = asyncHandler(async (req, res) => {
 
   res.status(201).json(ticket);
 });
+
 
 
 
