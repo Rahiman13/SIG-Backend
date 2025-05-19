@@ -34,6 +34,12 @@ exports.login = async (req, res) => {
     return res.status(401).json({ message: "Invalid credentials" });
   }
 
+  // Check if the employee status is Inactive
+  if (employee.status === 'Inactive') {
+    return res.status(403).json({ message: "Your account is currently inactive. Please contact admin." });
+  }
+
+
   const token = generateToken(employee._id);
   res.json({ token, employee });
 };

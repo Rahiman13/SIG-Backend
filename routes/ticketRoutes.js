@@ -12,6 +12,8 @@ const {
   getTicketStats,
   checkBreachedTickets,
   updateTicketStatus,
+  getMyTickets, 
+  getMyTicketStats,
 } = require("../controllers/ticketController");
 
 
@@ -42,5 +44,10 @@ router.get("/check-breached", checkBreachedTickets);
 
 // ✅ New status update route
 router.patch('/:id/status', updateTicketStatus);
+
+router.get("/my-tickets/:employeeId", getMyTickets);
+
+// Get ticket stats for logged-in (non-admin) employee
+router.get("/my-ticket-stats/:employeeId", getMyTicketStats);
 
 module.exports = router;

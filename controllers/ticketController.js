@@ -270,6 +270,57 @@ const updateTicketStatus = asyncHandler(async (req, res) => {
 });
 
 
+// @desc    Get tickets created by a specific employee (self)
+// @route   GET /api/tickets/my-tickets/:employeeId
+// @access  Employee
+const getMyTickets = asyncHandler(async (req, res) => {
+  const { employeeId } = req.params;
+
+  // Fetch all tickets created by this user
+  const tickets = await Ticket.find({ createdBy: employeeId })
+    .populate("assignedTo handledBy forwardedFrom forwardedTo")
+    .sort({ createdAt: -1 });
+
+  // Calculate status counts
+  const openCount = tickets.filter(ticket => ticket.status === 'Open').length;
+  const resolvedCount = tickets.filter(ticket => ticket.status === 'Resolved').length;
+  const breachedCount = tickets.filter(ticket => ticket.status === 'Breached').length;
+
+  res.json({
+    total: tickets.length,
+    open: openCount,
+    resolved: resolvedCount,
+    breached: breachedCount,
+    tickets
+  });
+});
+
+
+// @desc    Get ticket stats for a non-admin employee (self)
+// @route   GET /api/tickets/my-ticket-stats/:employeeId
+// @access  Private (Non-admin)
+const getMyTicketStats = asyncHandler(async (req, res) => {
+  const { employeeId } = req.params;
+
+  // Ensure employee exists
+  const employee = await User.findById(employeeId);
+  if (!employee) {
+    res.status(404);
+    throw new Error("Employee not found");
+  }
+
+  // Count tickets created by this employee
+  const total = await Ticket.countDocuments({ createdBy: employeeId });
+  const open = await Ticket.countDocuments({ createdBy: employeeId, status: "Open" });
+  const resolved = await Ticket.countDocuments({ createdBy: employeeId, status: "Resolved" });
+  const breached = await Ticket.countDocuments({ createdBy: employeeId, status: "Breached" });
+
+  res.json({ total, open, resolved, breached });
+});
+
+
+
+
 module.exports = {
   createTicket,
   getAllTickets,
@@ -280,4 +331,6 @@ module.exports = {
   getTicketStats,
   checkBreachedTickets,
   updateTicketStatus,
+  getMyTickets,
+  getMyTicketStats,
 };
