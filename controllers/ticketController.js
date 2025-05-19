@@ -172,34 +172,68 @@ const formattedDate = `${day}${month}${year}`;
 // Controller: Create Ticket and Upload to Cloudinary
 
 
+// const createTicket = async (req, res) => {
+//   try {
+//     const { title, description, createdBy } = req.body;
+//     let imageUrl = "";
+
+//     // Upload image to Cloudinary
+//     if (req.file) {
+//       const result = await cloudinary.uploader.upload(req.file.path, {
+//         folder: "signavox-tickets",
+//       });
+//       imageUrl = result.secure_url;
+
+//       // Delete local copy after upload
+//       fs.unlinkSync(req.file.path);
+//     }
+
+//     const ticket = new Ticket({
+//       title,
+//       description,
+//       createdBy,
+//       image: imageUrl, // Set Cloudinary URL here
+//     });
+
+//     await ticket.save();
+
+//     res.status(201).json({ success: true, ticket });
+//   } catch (err) {
+//     console.error("Cloudinary Upload Error:", err);
+//     res.status(500).json({ success: false, message: "Ticket creation failed" });
+//   }
+// };
+
+
 const createTicket = async (req, res) => {
   try {
     const { title, description, createdBy } = req.body;
+
     let imageUrl = "";
 
-    // Upload image to Cloudinary
     if (req.file) {
       const result = await cloudinary.uploader.upload(req.file.path, {
         folder: "signavox-tickets",
       });
+
       imageUrl = result.secure_url;
 
-      // Delete local copy after upload
+      // Delete file from local storage
       fs.unlinkSync(req.file.path);
     }
 
-    const ticket = new Ticket({
+    const newTicket = new Ticket({
       title,
       description,
       createdBy,
-      image: imageUrl, // Set Cloudinary URL here
+      image: imageUrl, // ✅ Must be cloudinary URL
     });
 
-    await ticket.save();
+    await newTicket.save();
 
-    res.status(201).json({ success: true, ticket });
+    res.status(201).json({ success: true, ticket: newTicket });
   } catch (err) {
-    console.error("Cloudinary Upload Error:", err);
+    console.error("Ticket creation failed:", err);
     res.status(500).json({ success: false, message: "Ticket creation failed" });
   }
 };
@@ -236,8 +270,30 @@ const getTicketById = asyncHandler(async (req, res) => {
 });
 
 // Update Ticket
+// const updateTicket = asyncHandler(async (req, res) => {
+//   const { title, description, status } = req.body;
+//   const ticket = await Ticket.findById(req.params.id);
+//   if (!ticket) {
+//     res.status(404);
+//     throw new Error("Ticket not found");
+//   }
+
+//   ticket.title = title || ticket.title;
+//   ticket.description = description || ticket.description;
+//   if (status) ticket.status = status;
+
+//   if (req.file) {
+//     const image = req.file.filename;
+//     ticket.image = image;
+//   }
+
+//   await ticket.save();
+//   res.json(ticket);
+// });
+
 const updateTicket = asyncHandler(async (req, res) => {
   const { title, description, status } = req.body;
+
   const ticket = await Ticket.findById(req.params.id);
   if (!ticket) {
     res.status(404);
@@ -248,14 +304,26 @@ const updateTicket = asyncHandler(async (req, res) => {
   ticket.description = description || ticket.description;
   if (status) ticket.status = status;
 
+  // Handle image update
   if (req.file) {
-    const image = req.file.filename;
-    ticket.image = image;
+    try {
+      // Upload new image to Cloudinary
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "tickets",
+      });
+
+      // Update ticket with Cloudinary image URL
+      ticket.image = result.secure_url;
+    } catch (error) {
+      res.status(500);
+      throw new Error("Cloudinary upload failed");
+    }
   }
 
   await ticket.save();
   res.json(ticket);
 });
+
 
 // Delete Ticket
 const deleteTicket = asyncHandler(async (req, res) => {
