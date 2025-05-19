@@ -33,7 +33,7 @@ const { protect, adminOnly } = require('../middleware/auth');
 // router.post('/forgot-password', forgotPassword);
 // router.post('/reset-password', resetPassword);
 
-router.get('/support',  getSupportEmployees);
+router.get('/support', protect, adminOnly,  getSupportEmployees);
 // Employee profile
 router.get('/profile', protect, getProfile);
 router.get('/count', protect, authMiddleware, getEmployeeCounts);

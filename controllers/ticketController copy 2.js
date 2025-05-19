@@ -4,30 +4,9 @@ const asyncHandler = require("express-async-handler");
 const { sendMail } = require("../utils/sendMail");
 const path = require("path");
 const fs = require("fs");
-const cloudinary = require("../utils/cloudinary")
 
-// const multer = require("multer");
-// const cloudinary = require("cloudinary").v2;
-// const fs = require("fs");
 
-// // Cloudinary config (ensure this is set correctly in your project)
-// cloudinary.config({
-//   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-//   api_key: process.env.CLOUDINARY_API_KEY,
-//   api_secret: process.env.CLOUDINARY_API_SECRET,
-// });
 
-// // Multer setup (temporary local storage)
-// const storage = multer.diskStorage({
-//   destination: function (req, file, cb) {
-//     cb(null, "uploads/");
-//   },
-//   filename: function (req, file, cb) {
-//     const uniqueName = Date.now() + "-" + file.originalname;
-//     cb(null, uniqueName);
-//   },
-// });
-// const upload = multer({ storage });
 
 
 // Utility: Check if a date is a working day (Mon–Fri)
@@ -67,144 +46,133 @@ const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are 0-based
 const year = now.getFullYear();
 const formattedDate = `${day}${month}${year}`;
 
-// const createTicket = async (req, res) => {
-//   try {
-//     const { title, description } = req.body;
-//     const image = req.file ? req.file.filename : null;
+// Create Ticket
+// const createTicket = asyncHandler(async (req, res) => {
+//   const { title, description, createdBy } = req.body;
+//   const image = req.file ? req.file.filename : null;
 
-//     // Get support team
-//     const supportTeam = await Employee.find({ role: 'Support', status: 'Active' });
+//   const employee = await User.findById(createdBy);
+//   if (!employee) throw new Error("Employee not found");
 
-//     if (!supportTeam.length) {
-//       return res.status(400).json({ error: 'No active support team members found.' });
-//     }
+//   const ticketCount = await Ticket.countDocuments();
+//   // const ticketNumber = `IE${Date.now()}${ticketCount + 1}`;
+//   // console.log(Date.now())
+//   const ticketNumber = `IE${formattedDate}${ticketCount + 1}`;
 
-//     // Assign via round-robin
-//     const assignedTo = supportTeam[lastAssignedIndex % supportTeam.length];
-//     lastAssignedIndex++;
+//   const assignedSupport = await assignSupportEmployee();
+//   if (!assignedSupport) throw new Error("No support member available");
 
-//     // Generate ticket number
-//     const ticketNumber = await generateTicketNumber();
+//   const ticket = await Ticket.create({
+//     title,
+//     description,
+//     createdBy,
+//     assignedTo: assignedSupport._id,
+//     ticketNumber,
+//     image,
+//     status: "Open",
+//     createdAt: new Date(),
+//   });
 
-//     const ticketData = {
-//       title,
-//       description,
-//       createdBy: req.user._id,
-//       ticketNumber,
-//       assignedTo: assignedTo._id,
-//     };
+//   res.status(201).json(ticket);
+// });
+// Create Ticket
+// const createTicket = asyncHandler(async (req, res) => {
+//   const { title, description, createdBy } = req.body;
+//   const image = req.file ? req.file.filename : null;
 
-//     // If image uploaded
-//     if (req.file && req.file.path) {
-//       ticketData.image = req.file.path;
-//     }
+//   const employee = await User.findById(createdBy);
+//   if (!employee) throw new Error("Employee not found");
 
-//     const ticket = new Ticket(ticketData);
-//     await ticket.save();
+//   const todayStart = new Date();
+//   todayStart.setHours(0, 0, 0, 0);
 
-//     res.status(201).json(ticket);
-//   } catch (err) {
-//     console.error('Error creating ticket:', err);
-//     res.status(500).json({ error: 'Failed to create ticket' });
-//   }
-// };
+//   const todayEnd = new Date();
+//   todayEnd.setHours(23, 59, 59, 999);
+
+//   const todayTicketCount = await Ticket.countDocuments({
+//     createdAt: { $gte: todayStart, $lte: todayEnd }
+//   });
+
+//   const ticketNumber = `IE${formattedDate}${todayTicketCount + 1}`;
+
+//   const assignedSupport = await assignSupportEmployee();
+//   if (!assignedSupport) throw new Error("No support member available");
+
+//   const ticket = await Ticket.create({
+//     title,
+//     description,
+//     createdBy,
+//     assignedTo: assignedSupport._id,
+//     ticketNumber,
+//     image,
+//     status: "Open",
+//     createdAt: new Date(),
+//   });
+
+//   res.status(201).json(ticket);
+// });
+
+const createTicket = asyncHandler(async (req, res) => {
+  const { title, description, createdBy } = req.body;
+  const image = req.file ? req.file.filename : null;
+
+  const employee = await User.findById(createdBy);
+  if (!employee) throw new Error("Employee not found");
+
+  // Ticket prefix
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const todayTicketCount = await Ticket.countDocuments({
+    createdAt: { $gte: todayStart, $lte: todayEnd }
+  });
+
+  const randomString = () => {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let result = "";
+    for (let i = 0; i < 2; i++) {
+      result += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    return result;
+  };
+
+  let ticketNumber;
+  let exists = true;
+  let attempts = 0;
+
+  while (exists && attempts < 5) {
+    ticketNumber = `IE${formattedDate}${randomString()}${todayTicketCount + 1}`;
+    const existingTicket = await Ticket.findOne({ ticketNumber });
+    if (!existingTicket) exists = false;
+    attempts++;
+  }
+
+  if (exists) throw new Error("Failed to generate unique ticket number");
+
+  const assignedSupport = await assignSupportEmployee();
+  if (!assignedSupport) throw new Error("No support member available");
+
+  const ticket = await Ticket.create({
+    title,
+    description,
+    createdBy,
+    assignedTo: assignedSupport._id,
+    ticketNumber,
+    image,
+    status: "Open",
+    createdAt: new Date(),
+  });
+
+  res.status(201).json(ticket);
+});
+
 
 
 
 
 // Assign support employee round-robin
-
-
-// const createTicket = async (req, res) => {
-//   upload(req, res, async function (err) {
-//     if (err) {
-//       console.error("Multer error:", err);
-//       return res.status(400).json({ error: err.message });
-//     }
-
-//     try {
-//       const { title, description } = req.body;
-
-//       // Get support team
-//       const supportTeam = await User.find({ role: 'Support', status: 'Active' });
-//       if (!supportTeam.length) {
-//         return res.status(400).json({ error: 'No active support team members found.' });
-//       }
-
-//       // Assign via round-robin
-//       const assignedTo = supportTeam[lastAssignedIndex % supportTeam.length];
-//       lastAssignedIndex++;
-
-//       // Generate ticket number
-//       const ticketNumber = await generateTicketNumber();
-
-//       const ticketData = {
-//         title,
-//         description,
-//         createdBy: req.user._id,
-//         ticketNumber,
-//         assignedTo: assignedTo._id,
-//       };
-
-//       // Upload image to Cloudinary if exists
-//       if (req.file && req.file.path) {
-//         const result = await cloudinary.uploader.upload(req.file.path, {
-//           folder: "tickets",
-//         });
-//         ticketData.image = result.secure_url;
-
-//         // Optionally remove local file after upload
-//         fs.unlinkSync(req.file.path);
-//       }
-
-//       const ticket = new Ticket(ticketData);
-//       await ticket.save();
-
-//       res.status(201).json(ticket);
-//     } catch (err) {
-//       console.error("Error creating ticket:", err);
-//       res.status(500).json({ error: "Failed to create ticket" });
-//     }
-//   });
-// };
-
-
-// Controller: Create Ticket and Upload to Cloudinary
-
-
-const createTicket = async (req, res) => {
-  try {
-    const { title, description, createdBy } = req.body;
-    let imageUrl = "";
-
-    // Upload image to Cloudinary
-    if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: "signavox-tickets",
-      });
-      imageUrl = result.secure_url;
-
-      // Delete local copy after upload
-      fs.unlinkSync(req.file.path);
-    }
-
-    const ticket = new Ticket({
-      title,
-      description,
-      createdBy,
-      image: imageUrl, // Set Cloudinary URL here
-    });
-
-    await ticket.save();
-
-    res.status(201).json({ success: true, ticket });
-  } catch (err) {
-    console.error("Cloudinary Upload Error:", err);
-    res.status(500).json({ success: false, message: "Ticket creation failed" });
-  }
-};
-
-
 let lastAssignedIndex = 0;
 const assignSupportEmployee = async () => {
   // Case-insensitive match to avoid casing issues in the DB
