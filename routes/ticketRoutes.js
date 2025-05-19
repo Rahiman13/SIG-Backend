@@ -11,6 +11,7 @@ const {
   forwardTicket,
   getTicketStats,
   checkBreachedTickets,
+  updateTicketStatus,
 } = require("../controllers/ticketController");
 
 
@@ -38,5 +39,8 @@ router.post("/forward/:id", forwardTicket);
 
 // Check breached tickets (could be a cron job endpoint or protected route)
 router.get("/check-breached", checkBreachedTickets);
+
+// ✅ New status update route
+router.patch('/:id/status', updateTicketStatus);
 
 module.exports = router;

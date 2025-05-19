@@ -43,6 +43,35 @@ const year = now.getFullYear();
 const formattedDate = `${day}${month}${year}`;
 
 // Create Ticket
+// const createTicket = asyncHandler(async (req, res) => {
+//   const { title, description, createdBy } = req.body;
+//   const image = req.file ? req.file.filename : null;
+
+//   const employee = await User.findById(createdBy);
+//   if (!employee) throw new Error("Employee not found");
+
+//   const ticketCount = await Ticket.countDocuments();
+//   // const ticketNumber = `IE${Date.now()}${ticketCount + 1}`;
+//   // console.log(Date.now())
+//   const ticketNumber = `IE${formattedDate}${ticketCount + 1}`;
+
+//   const assignedSupport = await assignSupportEmployee();
+//   if (!assignedSupport) throw new Error("No support member available");
+
+//   const ticket = await Ticket.create({
+//     title,
+//     description,
+//     createdBy,
+//     assignedTo: assignedSupport._id,
+//     ticketNumber,
+//     image,
+//     status: "Open",
+//     createdAt: new Date(),
+//   });
+
+//   res.status(201).json(ticket);
+// });
+// Create Ticket
 const createTicket = asyncHandler(async (req, res) => {
   const { title, description, createdBy } = req.body;
   const image = req.file ? req.file.filename : null;
@@ -50,10 +79,17 @@ const createTicket = asyncHandler(async (req, res) => {
   const employee = await User.findById(createdBy);
   if (!employee) throw new Error("Employee not found");
 
-  const ticketCount = await Ticket.countDocuments();
-  // const ticketNumber = `IE${Date.now()}${ticketCount + 1}`;
-  // console.log(Date.now())
-  const ticketNumber = `IE${formattedDate}${ticketCount + 1}`;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const todayTicketCount = await Ticket.countDocuments({
+    createdAt: { $gte: todayStart, $lte: todayEnd }
+  });
+
+  const ticketNumber = `IE${formattedDate}${todayTicketCount + 1}`;
 
   const assignedSupport = await assignSupportEmployee();
   if (!assignedSupport) throw new Error("No support member available");
@@ -71,6 +107,9 @@ const createTicket = asyncHandler(async (req, res) => {
 
   res.status(201).json(ticket);
 });
+
+
+
 
 // Assign support employee round-robin
 let lastAssignedIndex = 0;
@@ -201,6 +240,36 @@ const checkBreachedTickets = asyncHandler(async (req, res) => {
   res.json({ breached: breachedTickets });
 });
 
+
+// @desc    Support member updates the status of a ticket
+// @route   PATCH /api/tickets/:id/status
+// @access  Support
+const updateTicketStatus = asyncHandler(async (req, res) => {
+  const { status, handledBy } = req.body;
+
+  if (!['Open', 'Resolved', 'Breached'].includes(status)) {
+    res.status(400);
+    throw new Error("Invalid status");
+  }
+
+  const ticket = await Ticket.findById(req.params.id);
+  if (!ticket) {
+    res.status(404);
+    throw new Error("Ticket not found");
+  }
+
+  ticket.status = status;
+  if (status === 'Resolved') {
+    ticket.resolvedAt = new Date();
+    ticket.handledBy = handledBy;
+  }
+
+  await ticket.save();
+
+  res.json({ message: "Ticket status updated successfully", ticket });
+});
+
+
 module.exports = {
   createTicket,
   getAllTickets,
@@ -210,4 +279,5 @@ module.exports = {
   forwardTicket,
   getTicketStats,
   checkBreachedTickets,
+  updateTicketStatus,
 };
