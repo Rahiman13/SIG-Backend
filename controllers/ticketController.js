@@ -5,6 +5,8 @@ const { sendMail } = require("../utils/sendMail");
 const path = require("path");
 const fs = require("fs");
 const cloudinary = require("../utils/cloudinary")
+const moment = require("moment");
+
 
 // const multer = require("multer");
 // const cloudinary = require("cloudinary").v2;
@@ -44,6 +46,21 @@ const getNextWorkingDay = (date) => {
   }
   return result;
 };
+
+const generateRandomChars = () => {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  return chars.charAt(Math.floor(Math.random() * 26)) + chars.charAt(Math.floor(Math.random() * 26));
+};
+
+// Utility: Generate Unique Ticket Number
+const generateTicketNumber = async () => {
+  const today = formattedDate;
+  const todayCount = await Ticket.countDocuments({
+    ticketNumber: { $regex: `^IE${today}` },
+  });
+  return `IE${today}${(todayCount + 1).toString().padStart(3, "0")}`;
+};
+
 
 // Utility: Get working hours between two dates
 const getWorkingHoursBetween = (start, end) => {
@@ -205,36 +222,71 @@ const formattedDate = `${day}${month}${year}`;
 // };
 
 
+// Global support assignment counter
+let supportCounter = 0;
+
 const createTicket = async (req, res) => {
   try {
     const { title, description, createdBy } = req.body;
 
-    let imageUrl = "";
+    if (!title || !description || !createdBy) {
+      return res.status(400).json({ success: false, message: "Title, description, and createdBy are required" });
+    }
 
+    // Upload image to Cloudinary if available
+    let imageUrl = null;
     if (req.file) {
       const result = await cloudinary.uploader.upload(req.file.path, {
         folder: "signavox-tickets",
       });
-
       imageUrl = result.secure_url;
-
-      // Delete file from local storage
-      fs.unlinkSync(req.file.path);
     }
 
-    const newTicket = new Ticket({
-      title,
-      description,
-      createdBy,
-      image: imageUrl, // ✅ Must be cloudinary URL
+    // Get support team members
+    const supportMembers = await User.find({ role: "Support" });
+    if (supportMembers.length === 0) {
+      return res.status(500).json({ success: false, message: "No support team members found" });
+    }
+
+    // Round-robin assignment
+    const assignedEmployee = supportMembers[supportCounter % supportMembers.length];
+    supportCounter++;
+
+    // Format ticket number: IE + ddMMyyyy + 2 random letters + 3-digit count
+    const today = moment().format("DDMMYYYY");
+    const randomChars = generateRandomChars();
+    const ticketCountToday = await Ticket.countDocuments({
+      createdAt: {
+        $gte: moment().startOf("day").toDate(),
+        $lte: moment().endOf("day").toDate(),
+      },
     });
 
-    await newTicket.save();
+    const ticketNumber = `IE${today}${randomChars}${(ticketCountToday + 1).toString().padStart(3, "0")}`;
 
-    res.status(201).json({ success: true, ticket: newTicket });
-  } catch (err) {
-    console.error("Ticket creation failed:", err);
-    res.status(500).json({ success: false, message: "Ticket creation failed" });
+    // Create the ticket
+    const createdTicket = await Ticket.create({
+      title,
+      description,
+      image: imageUrl,
+      createdBy,
+      assignedTo: assignedEmployee._id,
+      ticketNumber,
+    });
+
+    // Populate both assignedTo and createdBy
+    const populatedTicket = await Ticket.findById(createdTicket._id)
+      .populate("createdBy")
+      .populate("assignedTo");
+
+    res.status(201).json({
+      success: true,
+      ticket: populatedTicket,
+    });
+
+  } catch (error) {
+    console.error("Error creating ticket:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
