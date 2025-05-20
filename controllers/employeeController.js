@@ -12,10 +12,31 @@ const isValidEmailDomain = (email) => {
   return email.endsWith('@signavoxtechnologies.com');
 };
 
+// const getProfile = asyncHandler(async (req, res) => {
+//   const employee = req.employee;
+//   res.status(200).json(employee);
+// });
+
+
 const getProfile = asyncHandler(async (req, res) => {
   const employee = req.employee;
-  res.status(200).json(employee);
+
+  res.status(200).json({
+    _id: employee._id,
+    name: employee.name,
+    email: employee.email,
+    employeeId: employee.employeeId,
+    role: employee.role,
+    team: employee.team,
+    bloodGroup: employee.bloodGroup,
+    profileImage: employee.profileImage,
+    status: employee.status,
+    isAvailable: employee.isAvailable,
+  });
 });
+
+
+
 
 // @desc    Update logged-in employee profile
 // @route   PUT /api/employees/profile
