@@ -5,6 +5,9 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const employeeRoutes = require('./routes/employeeRoutes'); 
+const projectRoutes = require('./routes/projectRoutes');
+const projectApplicationRoutes = require('./routes/projectApplicationRoutes');
+const mobilityStatsRoutes = require('./routes/mobilityStatsRoutes');
 
 dotenv.config();
 
@@ -22,6 +25,11 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/cards', require('./routes/cardRoutes'));
 app.use('/api/quick-links', require('./routes/quickLinkRoutes'));
 app.use('/api/tickets', require('./routes/ticketRoutes'));
+
+
+app.use('/api/projects', projectRoutes);
+app.use('/api/project-applications', projectApplicationRoutes);
+app.use('/api/mobility-stats', mobilityStatsRoutes);
 
 // Handle errors (optional)
 app.use((err, req, res, next) => {

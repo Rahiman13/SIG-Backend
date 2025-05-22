@@ -6,33 +6,15 @@ const employeeSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: { type: String, required: true },
   employeeId: { type: String, required: true, unique: true },
-  role: {
-    type: String,
-    enum: ['CEO', 'HR', 'Manager', 'Developer', 'DevOps', 'BDE', 'Support', 'Other'],
-    default: 'Other'
-  },
-  team: {
-    type: String,
-    enum: ['Operations', 'Technical', 'Finance', 'Marketing', 'Other'],
-    default: 'Other'
-  },
-  isAvailable: { type: Boolean, default: true },
+  role: { type: String, enum: ['CEO', 'HR', 'Manager', 'Developer', 'DevOps', 'BDE', 'Support', 'Other'], default: 'Other' },
+  team: { type: String, enum: ['Operations', 'Technical', 'Finance', 'Marketing', 'Other' ], default: 'Other' },
+  isAvailable: { type: Boolean, default: true }, 
   bloodGroup: String,
   profileImage: String,
-  status: {
-    type: String,
-    enum: ['Active', 'Inactive'],
-    default: 'Active'
-  },
+  status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
   otp: String,
   otpExpiry: Date,
-  isAdmin: { type: Boolean, default: false },
-
-  // 🔽 myMobility fields
-  isOnBench: { type: Boolean, default: true },
-  currentProject: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null },
-  skills: { type: [String], default: [] },
-  experience: { type: String, default: '0 years' }
+  isAdmin: { type: Boolean, default: false }
 });
 
 // Hash password before saving
