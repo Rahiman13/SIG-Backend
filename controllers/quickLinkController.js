@@ -26,6 +26,17 @@ exports.getAllQuickLinks = async (req, res) => {
   }
 };
 
+
+exports.getMyQuickLinks = async (req, res) => {
+  try {
+    const quickLinks = await QuickLink.find({ createdBy: req.user._id }).sort({ createdAt: -1 }).populate('createdBy', 'name email');
+    res.json(quickLinks);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 exports.getQuickLinkById = async (req, res) => {
   try {
     const link = await QuickLink.findById(req.params.id).populate('createdBy', 'name email');
