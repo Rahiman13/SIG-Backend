@@ -18,7 +18,7 @@ exports.applyForProject = async (req, res) => {
       resumeOrPortfolio // Link only
     });
 
-    res.status(201).json(newApp);
+    res.status(201).json(newApp).populate('project','projectId title').populate('employee','name employeeId');
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
