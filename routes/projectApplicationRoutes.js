@@ -9,6 +9,8 @@ router.post('/apply', auth, controller.applyForProject);
 // Admin gets all applications
 router.get('/', auth, isAdmin, controller.getAllApplications);
 
+// Admin get application By Id
+router.get('/:id', auth, isAdmin, controller.getApplicationById);
 // Admin approves application
 router.patch('/approve/:id', auth, isAdmin, controller.approveApplication);
 

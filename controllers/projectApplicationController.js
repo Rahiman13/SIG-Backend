@@ -36,6 +36,22 @@ exports.getAllApplications = async (req, res) => {
   }
 };
 
+// Get application by ID
+exports.getApplicationById = async (req, res) => {
+  try {
+    const app = await ProjectApplication.findById(req.params.id)
+      .populate('project', 'title department')
+      .populate('employee', 'name email employeeId');
+
+    if (!app) return res.status(404).json({ error: 'Application not found' });
+
+    res.json(app);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 // Approve application
 exports.approveApplication = async (req, res) => {
   try {
