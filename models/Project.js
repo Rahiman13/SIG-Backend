@@ -35,8 +35,14 @@ const projectSchema = new mongoose.Schema({
   client: {
     name: { type: String, required: true },
     contactEmail: { type: String },
+    mobile: { type: String },            // New field
+    ceo: { type: String },               // New field
     industry: { type: String },
-    location: { type: String }
+    location: { type: String },
+    website: { type: String },           // Optional: Company website
+    address: { type: String },           // Optional: Full address
+    gstNumber: { type: String },         // Optional: For Indian companies
+    registrationId: { type: String }     // Optional: Internal reference
   },
   createdAt: { type: Date, default: Date.now }
 });

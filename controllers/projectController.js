@@ -5,7 +5,7 @@ const moment = require('moment'); // Use for consistent date formatting
 
 exports.createProject = async (req, res) => {
   try {
-    const { title, teamLead } = req.body;
+    const { title, teamLead, teamSizeLimit = 1 } = req.body;
 
     if (!title || title.length < 2) {
       return res.status(400).json({ error: 'Project title must be at least 2 characters' });
@@ -15,35 +15,40 @@ exports.createProject = async (req, res) => {
     const dateStr = moment().format('YYYYMMDD');
     const suffix = title.trim().substring(0, 2).toUpperCase();
 
-    // Count existing projects for today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
-    const countToday = await Project.countDocuments({ createdAt: { $gte: today, $lt: tomorrow } });
-    const count = countToday + 1;
 
-    // Generate projectId
+    const countToday = await Project.countDocuments({
+      createdAt: { $gte: today, $lt: tomorrow }
+    });
+
+    const count = countToday + 1;
     const projectId = `PRJ-${dateStr}-${suffix}${count}`;
 
-    // Prepare project payload
-    const projectPayload = {
+    // Assigned employees list initialization
+    const assignedEmployees = [];
+
+    // If teamLead is provided, add them to assigned employees and update their bench status
+    if (teamLead) {
+      const lead = await Employee.findById(teamLead);
+      if (!lead) return res.status(404).json({ error: 'Team lead not found' });
+
+      // Set team lead as assigned and off bench
+      await Employee.findByIdAndUpdate(teamLead, { isOnBench: false });
+
+      assignedEmployees.push(teamLead);
+    }
+
+    const project = await Project.create({
       ...req.body,
       projectId,
       createdBy: req.user._id,
-      assignedEmployees: teamLead ? [teamLead] : []
-    };
-
-    // Create project
-    const project = await Project.create(projectPayload);
-
-    // Update team lead if provided
-    if (teamLead) {
-      await Employee.findByIdAndUpdate(teamLead, {
-        isOnBench: false,
-        currentProject: project._id
-      });
-    }
+      assignedEmployees,
+      vacancy: teamSizeLimit - assignedEmployees.length
+    });
 
     const populatedProject = await Project.findById(project._id)
       .populate('createdBy', 'name email')
@@ -109,7 +114,7 @@ exports.createProject = async (req, res) => {
 
 exports.getAllProjects = async (req, res) => {
     try {
-        const projects = await Project.find().populate('createdBy', 'name email').populate('teamLead', 'name email');
+        const projects = await Project.find().populate('createdBy', 'name email').populate('teamLead', 'name email').populate('assignedEmployees', 'name email');
         res.json(projects);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -118,7 +123,7 @@ exports.getAllProjects = async (req, res) => {
 
 exports.getProjectById = async (req, res) => {
     try {
-        const project = await Project.findById(req.params.id).populate('createdBy', 'name email');
+        const project = await Project.findById(req.params.id).populate('createdBy', 'name email').populate('teamLead', 'name email').populate('assignedEmployees', 'name email');
         if (!project) return res.status(404).json({ error: 'Project not found' });
         res.json(project);
     } catch (err) {
@@ -144,7 +149,7 @@ exports.updateProject = async (req, res) => {
             id,
             { $set: req.body }, // Ensures deep updates
             { new: true, runValidators: true }
-        );
+        ).populate('createdBy', 'name email').populate('teamLead', 'name email').populate('assignedEmployees', 'name email');
 
         if (!updatedProject) {
             return res.status(404).json({ error: 'Project not found' });
