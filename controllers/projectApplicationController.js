@@ -1,5 +1,7 @@
 const ProjectApplication = require('../models/ProjectApplication');
 const Employee = require('../models/Employee');
+const Project = require('../models/Project');
+
 
 // Apply for project (employee)
 exports.applyForProject = async (req, res) => {
@@ -190,6 +192,42 @@ exports.dropFromProject = async (req, res) => {
     });
 
     res.json({ message: 'Employee dropped from project' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// Get own applications (employee)
+exports.getOwnApplications = async (req, res) => {
+  try {
+    const apps = await ProjectApplication.find({ employee: req.user._id })
+      .populate('project', 'title projectId')
+      .populate('employee', 'name employeeId');
+
+    res.json(apps);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// Delete own pending application (employee)
+exports.deleteOwnApplication = async (req, res) => {
+  try {
+    const app = await ProjectApplication.findById(req.params.id);
+    if (!app) return res.status(404).json({ error: 'Application not found' });
+
+    if (app.employee.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'You are not authorized to delete this application' });
+    }
+
+    if (app.status !== 'pending') {
+      return res.status(400).json({ error: 'Only pending applications can be deleted' });
+    }
+
+    await ProjectApplication.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Application deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
