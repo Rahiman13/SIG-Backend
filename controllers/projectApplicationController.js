@@ -18,7 +18,7 @@ exports.applyForProject = async (req, res) => {
       resumeOrPortfolio // Link only
     });
 
-    res.status(201).json(newApp).populate('project','projectId title').populate('employee','name employeeId');
+    res.status(201).json(newApp).populate('project', 'projectId title').populate('employee', 'name employeeId');
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -53,6 +53,29 @@ exports.getApplicationById = async (req, res) => {
 
 
 // Approve application
+// exports.approveApplication = async (req, res) => {
+//   try {
+//     const app = await ProjectApplication.findById(req.params.id);
+//     if (!app) return res.status(404).json({ error: 'Application not found' });
+
+//     app.status = 'approved';
+//     app.approvedAt = new Date();
+//     app.assignedBy = req.user._id;
+//     await app.save();
+
+//     await Employee.findByIdAndUpdate(app.employee, {
+//       isOnBench: false,
+//       currentProject: app.project
+//     });
+
+//     res.json({ message: 'Application approved' });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
+
+// Approve application
 exports.approveApplication = async (req, res) => {
   try {
     const app = await ProjectApplication.findById(req.params.id);
@@ -68,11 +91,36 @@ exports.approveApplication = async (req, res) => {
       currentProject: app.project
     });
 
+    // ✅ Add employee to assignedEmployees of the project
+    await Project.findByIdAndUpdate(app.project, {
+      $addToSet: { assignedEmployees: app.employee } // avoids duplicates
+    });
+
     res.json({ message: 'Application approved' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+
+
+
+// Reject application
+// exports.rejectApplication = async (req, res) => {
+//   try {
+//     const app = await ProjectApplication.findById(req.params.id);
+//     if (!app) return res.status(404).json({ error: 'Application not found' });
+
+//     app.status = 'rejected';
+//     app.rejectedReason = req.body.reason;
+//     await app.save();
+
+//     res.json({ message: 'Application rejected' });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
 
 // Reject application
 exports.rejectApplication = async (req, res) => {
@@ -84,11 +132,42 @@ exports.rejectApplication = async (req, res) => {
     app.rejectedReason = req.body.reason;
     await app.save();
 
+    // ✅ Ensure employee is not in the assignedEmployees (defensive)
+    await Project.findByIdAndUpdate(app.project, {
+      $pull: { assignedEmployees: app.employee }
+    });
+
     res.json({ message: 'Application rejected' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+
+
+
+// Drop employee from project
+// exports.dropFromProject = async (req, res) => {
+//   try {
+//     const app = await ProjectApplication.findById(req.params.id);
+//     if (!app) return res.status(404).json({ error: 'Application not found' });
+
+//     app.status = 'dropped';
+//     app.droppedByAdmin = true;
+//     await app.save();
+
+//     await Employee.findByIdAndUpdate(app.employee, {
+//       isOnBench: true,
+//       currentProject: null
+//     });
+
+//     res.json({ message: 'Employee dropped from project' });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
 
 // Drop employee from project
 exports.dropFromProject = async (req, res) => {
@@ -105,9 +184,13 @@ exports.dropFromProject = async (req, res) => {
       currentProject: null
     });
 
+    // ✅ Remove employee from project's assignedEmployees
+    await Project.findByIdAndUpdate(app.project, {
+      $pull: { assignedEmployees: app.employee }
+    });
+
     res.json({ message: 'Employee dropped from project' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-    
